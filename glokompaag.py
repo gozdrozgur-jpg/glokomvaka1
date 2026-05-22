@@ -1,252 +1,283 @@
 import streamlit as st
+import random
 
 # --- SAYFA AYARLARI ---
 st.set_page_config(page_title="Glokom Vaka Simülatörü", layout="centered")
 
 # --- OYUN DURUMU (SESSION STATE) BAŞLATMA ---
+if 'current_case' not in st.session_state:
+    st.session_state.current_case = None # None: Ana Menü, 1: Vaka 1, 2: Vaka 2
 if 'fibers' not in st.session_state:
     st.session_state.fibers = 1200000
+if 'stage' not in st.session_state:
     st.session_state.stage = 1
+if 'feedback' not in st.session_state:
     st.session_state.feedback = ""
+if 'feedback_type' not in st.session_state:
     st.session_state.feedback_type = ""
 
-def reset_game():
+# Oyunu tamamen sıfırlayıp Ana Menüye dönme fonksiyonu
+def reset_to_menu():
+    st.session_state.current_case = None
     st.session_state.fibers = 1200000
     st.session_state.stage = 1
     st.session_state.feedback = ""
     st.session_state.feedback_type = ""
 
-# --- SAĞLIK BARI GÖRSELLEŞTİRME ---
-st.title("Vaka 1: Sinsi Tehlike ve Progresyon Yönetimi")
+# Seçilen veya rastgele gelen vakayı başlatma fonksiyonu
+def start_case(case_number):
+    st.session_state.current_case = case_number
+    st.session_state.fibers = 1200000
+    st.session_state.stage = 1
+    st.session_state.feedback = ""
+    st.session_state.feedback_type = ""
 
-# Oran hesaplama ve renk belirleme
-oran = max(0.0, st.session_state.fibers / 1200000.0)
-if oran > 0.7:
-    renk = "#28a745" # Yeşil
-elif oran > 0.4:
-    renk = "#ffc107" # Sarı
+# --- ANA MENÜ ---
+if st.session_state.current_case is None:
+    st.title("👁️ Glokom Klinik Karar Simülatörü")
+    st.markdown("Hoş geldiniz Doktor. Bugün nöbettesiniz. Karşınıza sinsi bir poliklinik vakası da gelebilir, acil serviste zamanla yarıştığınız bir kriz de... Hazır mısınız?")
+    
+    st.write("---")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("📁 Vaka 1'i Seç (Poliklinik)", use_container_width=True):
+            start_case(1)
+            st.rerun()
+    with col2:
+        if st.button("🚨 Vaka 2'yi Seç (Acil Servis)", use_container_width=True):
+            start_case(2)
+            st.rerun()
+    with col3:
+        if st.button("🎲 Rastgele Hasta Çağır", use_container_width=True, type="primary"):
+            start_case(random.choice([1, 2]))
+            st.rerun()
+
+# --- VAKA OYNANIŞ EKRANI (Ortak Sağlık Barı) ---
 else:
-    renk = "#dc3545" # Kırmızı
-
-# Sağlık barı HTML/CSS
-st.markdown(f"### Optik Sinir Rezervi: {int(st.session_state.fibers):,} Lif")
-st.markdown(
-    f"""
-    <div style="width: 100%; background-color: #e9ecef; border-radius: 5px; margin-bottom: 20px;">
-        <div style="width: {oran * 100}%; background-color: {renk}; height: 24px; border-radius: 5px; transition: width 0.5s, background-color 0.5s;"></div>
-    </div>
-    """, unsafe_allow_html=True
-)
-
-# --- GERİ BİLDİRİM EKRANI ---
-if st.session_state.feedback:
-    if st.session_state.feedback_type == "error":
-        st.error(st.session_state.feedback)
-    elif st.session_state.feedback_type == "success":
-        st.success(st.session_state.feedback)
-
-# --- AŞAMALAR ---
-
-# AŞAMA 1: İlk Temas
-if st.session_state.stage == 1:
-    st.subheader("Aşama 1: Poliklinik Muayenesi")
-    st.write("**Hikaye:** 55 yaşında erkek hasta. Şikayeti yok, yakın gözlüğünü değiştirmek için geldi. Ön segment doğal, açılar açık.")
-    st.write("**GİB Ölçümü:** Sağ: 22 mmHg, Sol: 23 mmHg.")
-    
-    q1 = st.radio(
-        "Glokom tanısını kesinleştirmeden önce bu aşamada yapılması gereken en kritik İLK tetkik nedir?",
-        ["Seçim yapınız...", 
-         "A) Vakit kaybetmeden topikal antiglokomatöz tedavi başlamak.", 
-         "B) KİBAS şüphesiyle hastayı nörolojiye yönlendirmek.", 
-         "C) Pakimetri ile kornea kalınlığını ölçmek."],
-        index=0
-    )
-    
-    if st.button("Kararı Onayla", key="btn1"):
-        if q1 == "C) Pakimetri ile kornea kalınlığını ölçmek.":
-            st.session_state.feedback = "Doğru! İnce kornealar GİB'i olduğundan düşük gösterebilir. Pakimetri: 490 mikron. Düzeltilmiş GİB aslında 26 mmHg!"
-            st.session_state.feedback_type = "success"
-            st.session_state.stage = 2
-            st.rerun()
-        elif q1 == "A) Vakit kaybetmeden topikal antiglokomatöz tedavi başlamak.":
-            st.session_state.fibers -= 100000
-            st.session_state.feedback = "Yanlış! Henüz hasar olup olmadığını ve gerçek GİB'i bilmiyorsunuz. (100.000 lif kaybettiniz)"
-            st.session_state.feedback_type = "error"
-            st.rerun()
-        elif q1 == "B) KİBAS şüphesiyle hastayı nörolojiye yönlendirmek.":
-            st.session_state.fibers -= 50000
-            st.session_state.feedback = "Yanlış! Hastayı gereksiz yere korkuttunuz ve zaman kaybettirdiniz. (50.000 lif kaybettiniz)"
-            st.session_state.feedback_type = "error"
-            st.rerun()
-
-# AŞAMA 2: Yapısal Değerlendirme
-elif st.session_state.stage == 2:
-    st.subheader("Aşama 2: Yapısal Değerlendirme")
-    st.write("Gerçek GİB'in yüksek olduğunu tespit ettiniz. Hasar analizi için Fundus ve OCT istediniz.")
-    st.write("**Bulgular:** Fundus muayenesinde C/D oranı 0.7, damarlar nazale itilmiş. OCT'de inferior RNFL tabakasında incelme saptandı.")
-    
-    q2 = st.radio(
-        "Normalde 0.4'ün altında olması beklenen C/D oranının bu hastada 0.7 olmasını ve OCT bulgusunu nasıl yorumlarsınız?",
-        ["Seçim yapınız...", 
-         "A) Fizyolojik büyük çukurluk.", 
-         "B) Glokomatöz hasar (Nörodejeneratif süreç)."],
-        index=0
-    )
-    
-    if st.button("Kararı Onayla", key="btn2"):
-        if q2 == "B) Glokomatöz hasar (Nörodejeneratif süreç).":
-            st.session_state.feedback = "Doğru! Nörodejeneratif süreci yakaladınız."
-            st.session_state.feedback_type = "success"
-            st.session_state.stage = 3
-            st.rerun()
-        elif q2 == "A) Fizyolojik büyük çukurluk.":
-            st.session_state.fibers -= 150000
-            st.session_state.feedback = "Yanlış! OCT'deki incelmeyi gözden kaçırdınız, tanı gecikti! (150.000 lif kaybettiniz)"
-            st.session_state.feedback_type = "error"
-            st.rerun()
-
-# AŞAMA 3: Fonksiyonel Değerlendirme
-elif st.session_state.stage == 3:
-    st.subheader("Aşama 3: Klinik Korelasyon")
-    st.write("Yapısal hasarı kesinleştirdiniz. Fonksiyonel karşılığını görmek için Görme Alanı testi istediniz.")
-    
-    q3 = st.radio(
-        "OCT'de saptadığınız 'inferior RNFL incelmesi'ne göre görme alanı testinde hangi spesifik defekti beklersiniz?",
-        ["Seçim yapınız...", 
-         "A) Santral skotom", 
-         "B) Superior arkuat skotom veya nazal step", 
-         "C) Bitemporal hemianopsi"],
-        index=0
-    )
-    
-    if st.button("Kararı Onayla", key="btn3"):
-        if q3 == "B) Superior arkuat skotom veya nazal step":
-            st.session_state.feedback = "Mükemmel anatomi-klinik korelasyonu! Görme alanında superior arkuat skotom saptandı."
-            st.session_state.feedback_type = "success"
-            st.session_state.stage = 4
-            st.rerun()
-        elif q3 == "A) Santral skotom":
-            st.session_state.fibers -= 50000
-            st.session_state.feedback = "Yanlış! Glokomda santral görme en son etkilenir. (50.000 lif kaybettiniz)"
-            st.session_state.feedback_type = "error"
-            st.rerun()
-        elif q3 == "C) Bitemporal hemianopsi":
-            st.session_state.fibers -= 50000
-            st.session_state.feedback = "Yanlış! Bu kiazma lezyonu bulgusudur. (50.000 lif kaybettiniz)"
-            st.session_state.feedback_type = "error"
-            st.rerun()
-
-# AŞAMA 4: Tanı ve İlk Tedavi
-elif st.session_state.stage == 4:
-    st.subheader("Aşama 4: Tedavi Planı")
-    st.write("Tüm bulguları (Anamnez, Pakimetri, Fundus, OCT, Görme Alanı) birleştirdiniz.")
-    st.write("**Kesin Tanı:** Primer Açık Açılı Glokom (PAAG)")
-    
-    q4 = st.radio(
-        "İlk basamak tedavi yaklaşımınız ne olmalıdır?",
-        ["Seçim yapınız...", 
-         "A) Cerrahi Trabekülektomi", 
-         "B) Lazer periferik iridotomi (LPI)", 
-         "C) Topikal Antiglokomatöz damla (Örn: Prostaglandin analogları)"],
-        index=0
-    )
-    
-    if st.button("Kararı Onayla", key="btn4"):
-        if q4 == "C) Topikal Antiglokomatöz damla (Örn: Prostaglandin analogları)":
-            st.session_state.feedback = "Doğru tedavi seçimi! Monoterapiye başlandı. Bakalım süreç nasıl ilerleyecek..."
-            st.session_state.feedback_type = "success"
-            st.session_state.stage = 5
-            st.rerun()
-        elif q4 == "A) Cerrahi Trabekülektomi":
-            st.session_state.fibers -= 100000
-            st.session_state.feedback = "Yanlış! İlk basamakta invaziv cerrahi tercih edilmez. (100.000 lif kaybettiniz)"
-            st.session_state.feedback_type = "error"
-            st.rerun()
-        elif q4 == "B) Lazer periferik iridotomi (LPI)":
-            st.session_state.fibers -= 100000
-            st.session_state.feedback = "Yanlış! Bu kapalı açılı glokom tedavisidir, açılarımız açık! (100.000 lif kaybettiniz)"
-            st.session_state.feedback_type = "error"
-            st.rerun()
-
-# AŞAMA 5: Progresyon Değerlendirmesi
-elif st.session_state.stage == 5:
-    st.subheader("⏳ Aşama 5: 6 Ay Sonra Kontrol Muayenesi")
-    st.write("Hastanız ilk ilacını düzenli kullanıyor ancak kontrole geldiğinde yapılan tetkiklerde:")
-    st.warning("⚠️ Görme alanında progresyon (ilerleme) var ve OCT'de RNFL tabakasında ek incelme saptandı. GİB: 21 mmHg (Hedef basınca ulaşılamamış).")
-    
-    q5 = st.radio(
-        "Mevcut tedavinin yetersiz kaldığı ve hasarın ilerlediği bu durumda ne yapalım?",
-        ["Seçim yapınız...", 
-         "A) Mevcut ilaçla takibe devam edelim.", 
-         "B) Tedaviye yeni (ikinci bir) ilaç ekleyelim.", 
-         "C) Doğrudan ilacı kesip cerrahi planlayalım."],
-        index=0
-    )
-    
-    if st.button("Kararı Onayla", key="btn5"):
-        if q5 == "B) Tedaviye yeni (ikinci bir) ilaç ekleyelim.":
-            st.session_state.feedback = "Doğru karar! Maksimum medikal tedaviye doğru ilerlemek adına ikinci bir molekül eklediniz."
-            st.session_state.feedback_type = "success"
-            st.session_state.stage = 6
-            st.rerun()
-        elif q5 == "A) Mevcut ilaçla takibe devam edelim.":
-            st.session_state.fibers -= 150000
-            st.session_state.feedback = "Yanlış! Progresyon varken tedavi basamağını artırmamak sinir liflerinin hızla ölmesine neden olur! (150.000 lif kaybettiniz)"
-            st.session_state.feedback_type = "error"
-            st.rerun()
-        elif q5 == "C) Doğrudan ilacı kesip cerrahi planlayalım.":
-            st.session_state.fibers -= 50000
-            st.session_state.feedback = "Yanlış! İkinci bir ilaç seçeneği denenmeden doğrudan cerrahiye geçmek ve mevcut ilacı tamamen kesmek uygun değildir. (50.000 lif kaybettiniz)"
-            st.session_state.feedback_type = "error"
-            st.rerun()
-
-# AŞAMA 6: Stabilizasyon Değerlendirmesi
-elif st.session_state.stage == 6:
-    st.subheader("⏳ Aşama 6: Bir 6 Ay Sonra Daha (İkinci Muayene)")
-    st.write("Tedaviye ikinci ilacı ekledikten sonra hasta tekrar kontrole çağrıldı. Yapılan tetkiklerde:")
-    st.info("ℹ️ RNFL tabakasındaki incelmenin DURDUĞU, görme alanı bulgularının tamamen STABİL kaldığı saptandı. GİB: 15 mmHg (Hedef basınca ulaşıldı).")
-    
-    q6 = st.radio(
-        "Progresyonun durduğu ve bulguların stabil seyrettiği bu aşamada sonraki adımınız ne olmalıdır?",
-        ["Seçim yapınız...", 
-         "A) Yeni ilaç ekleyelim.", 
-         "B) Cerrahi yapalım.", 
-         "C) Progresyon durduğu için ilaçları keselim.", 
-         "D) Mevcut iki ilaçlı tedaviye aynen devam edelim ve stabil seyri izleyelim."],
-        index=0
-    )
-    
-    if st.button("Kararı Onayla", key="btn6"):
-        if q6 == "D) Mevcut iki ilaçlı tedaviye aynen devam edelim ve stabil seyri izleyelim.":
-            st.session_state.feedback = "Mükemmel klinik yaklaşım! Glokomda amaç kaybedileni geri getirmek değil, progresyonu durdurmaktır. Başardınız!"
-            st.session_state.feedback_type = "success"
-            st.session_state.stage = 7
-            st.rerun()
-        elif q6 == "A) Yeni ilaç ekleyelim.":
-            st.session_state.fibers -= 50000
-            st.session_state.feedback = "Yanlış! Zaten stabil olan ve hedef basınca ulaşan hastaya gereksiz yere yan etki ve maliyet getirecek üçüncü bir ilaç eklenmez. (50.000 lif kaybettiniz)"
-            st.session_state.feedback_type = "error"
-            st.rerun()
-        elif q6 == "B) Cerrahi yapalım.":
-            st.session_state.fibers -= 100000
-            st.session_state.feedback = "Yanlış! Medikal tedaviyle progresyonu durdurulmuş stabil bir hastada invaziv cerrahi riskine girilmez. (100.000 lif kaybettiniz)"
-            st.session_state.feedback_type = "error"
-            st.rerun()
-        elif q6 == "C) Progresyon durduğu için ilaçları keselim.":
-            st.session_state.fibers -= 200000
-            st.session_state.feedback = "Büyük Hata! İlaçları keserseniz göz içi basıncı tekrar yükselecek ve progresyon hızla yeniden başlayacaktır! (200.000 lif kaybettiniz)"
-            st.session_state.feedback_type = "error"
-            st.rerun()
-
-# AŞAMA 7: Final Sonuç Ekranı
-elif st.session_state.stage == 7:
-    st.header("🏁 VAKA SONUÇ RAPORU")
-    if st.session_state.fibers > 800000:
-        st.success(f"Tebrikler Doktor! Hastayı {int(st.session_state.fibers):,} sağlıklı sinir lifi ile koruma altına aldınız. Hem sinsi progresyonu doğru hamleyle yakaladınız hem de stabil dönemde tedaviyi başarıyla sürdürdünüz!")
-        st.balloons()
+    # Başlık belirleme
+    if st.session_state.current_case == 1:
+        st.title("Vaka 1: Sinsi Tehlike (Poliklinik)")
     else:
-        st.error(f"Vaka tamamlandı ancak hatalı kararlar nedeniyle hastanın optik sinir rezervi {int(st.session_state.fibers):,} life kadar düştü. Takip algoritmasını tekrar gözden geçirmelisiniz.")
+        st.title("Vaka 2: Acil Serviste Zamanla Yarış")
         
-    if st.button("Oyunu Sıfırla ve Yeniden Başla"):
-        reset_game()
-        st.rerun()
+    # Ortak Sağlık Barı
+    oran = max(0.0, st.session_state.fibers / 1200000.0)
+    renk = "#28a745" if oran > 0.7 else "#ffc107" if oran > 0.4 else "#dc3545"
+
+    st.markdown(f"### Kalan Optik Sinir Rezervi: {int(st.session_state.fibers):,} Lif")
+    st.markdown(
+        f"""
+        <div style="width: 100%; background-color: #e9ecef; border-radius: 5px; margin-bottom: 20px;">
+            <div style="width: {oran * 100}%; background-color: {renk}; height: 24px; border-radius: 5px; transition: width 0.5s;"></div>
+        </div>
+        """, unsafe_allow_html=True
+    )
+
+    # Ortak Geri Bildirim Ekranı
+    if st.session_state.feedback:
+        if st.session_state.feedback_type == "error":
+            st.error(st.session_state.feedback)
+        else:
+            st.success(st.session_state.feedback)
+            
+    st.button("🔙 Ana Menüye Dön", on_click=reset_to_menu)
+    st.write("---")
+
+    # ==========================================
+    # VAKA 1 (PAAG) İŞLEYİŞİ
+    # ==========================================
+    if st.session_state.current_case == 1:
+        if st.session_state.stage == 1:
+            st.subheader("Aşama 1: Poliklinik Muayenesi")
+            st.write("**Hikaye:** 55 yaşında erkek hasta. Şikayeti yok, yakın gözlüğünü değiştirmek için geldi. Ön segment doğal, açılar açık.")
+            st.write("**GİB Ölçümü:** Sağ: 22 mmHg, Sol: 23 mmHg.")
+            
+            q1 = st.radio("Glokom tanısını kesinleştirmeden önce bu aşamada yapılması gereken en kritik İLK tetkik nedir?",
+                ["Seçim yapınız...", "A) Topikal tedavi başlamak.", "B) Nörolojiye yönlendirmek.", "C) Pakimetri ile kornea kalınlığını ölçmek."], index=0)
+            
+            if st.button("Onayla", key="v1_b1"):
+                if q1.startswith("C)"):
+                    st.session_state.feedback = "Doğru! İnce kornealar GİB'i olduğundan düşük gösterebilir. Pakimetri: 490 mikron. Düzeltilmiş GİB aslında 26 mmHg!"
+                    st.session_state.feedback_type = "success"
+                    st.session_state.stage = 2
+                    st.rerun()
+                elif q1.startswith("A)"):
+                    st.session_state.fibers -= 100000
+                    st.session_state.feedback = "Yanlış! Henüz hasar olup olmadığını bilmiyorsunuz. (100.000 lif kaybettiniz)"
+                    st.session_state.feedback_type = "error"; st.rerun()
+                elif q1.startswith("B)"):
+                    st.session_state.fibers -= 50000
+                    st.session_state.feedback = "Yanlış! Hastaya zaman kaybettirdiniz. (50.000 lif kaybettiniz)"
+                    st.session_state.feedback_type = "error"; st.rerun()
+
+        elif st.session_state.stage == 2:
+            st.subheader("Aşama 2: Yapısal Değerlendirme")
+            st.write("Fundus muayenesinde C/D oranı 0.7. OCT'de inferior RNFL tabakasında incelme saptandı.")
+            
+            q2 = st.radio("Normalde 0.4'ün altında olması beklenen C/D oranının 0.7 olmasını nasıl yorumlarsınız?",
+                ["Seçim yapınız...", "A) Fizyolojik büyük çukurluk.", "B) Glokomatöz hasar (Nörodejeneratif süreç)."], index=0)
+            
+            if st.button("Onayla", key="v1_b2"):
+                if q2.startswith("B)"):
+                    st.session_state.feedback = "Doğru! Nörodejeneratif süreci yakaladınız."
+                    st.session_state.feedback_type = "success"; st.session_state.stage = 3; st.rerun()
+                else:
+                    st.session_state.fibers -= 150000
+                    st.session_state.feedback = "Yanlış! OCT'deki incelmeyi gözden kaçırdınız! (150.000 lif kaybettiniz)"
+                    st.session_state.feedback_type = "error"; st.rerun()
+
+        elif st.session_state.stage == 3:
+            st.subheader("Aşama 3: Klinik Korelasyon")
+            q3 = st.radio("OCT'de 'inferior RNFL incelmesi'ne göre görme alanı testinde hangi defekti beklersiniz?",
+                ["Seçim yapınız...", "A) Santral skotom", "B) Superior arkuat skotom veya nazal step", "C) Bitemporal hemianopsi"], index=0)
+            
+            if st.button("Onayla", key="v1_b3"):
+                if q3.startswith("B)"):
+                    st.session_state.feedback = "Mükemmel korelasyon!"
+                    st.session_state.feedback_type = "success"; st.session_state.stage = 4; st.rerun()
+                else:
+                    st.session_state.fibers -= 50000
+                    st.session_state.feedback = "Yanlış! Glokomda santral veya bitemporal görme alanı ilk etapta tipik değildir. (50.000 lif kaybettiniz)"
+                    st.session_state.feedback_type = "error"; st.rerun()
+
+        elif st.session_state.stage == 4:
+            st.subheader("Aşama 4: Tedavi Planı")
+            q4 = st.radio("Kesin Tanı: Primer Açık Açılı Glokom (PAAG). İlk basamak tedaviniz ne olmalıdır?",
+                ["Seçim yapınız...", "A) Cerrahi Trabekülektomi", "B) Lazer periferik iridotomi (LPI)", "C) Topikal Antiglokomatöz damla"], index=0)
+            
+            if st.button("Onayla", key="v1_b4"):
+                if q4.startswith("C)"):
+                    st.session_state.feedback = "Doğru tedavi! Monoterapiye başlandı."
+                    st.session_state.feedback_type = "success"; st.session_state.stage = 5; st.rerun()
+                else:
+                    st.session_state.fibers -= 100000
+                    st.session_state.feedback = "Yanlış! LPI kapalı açı içindir, cerrahi ilk seçenek değildir. (100.000 lif kaybettiniz)"
+                    st.session_state.feedback_type = "error"; st.rerun()
+
+        elif st.session_state.stage == 5:
+            st.subheader("⏳ Aşama 5: 6 Ay Sonra Kontrol")
+            st.warning("⚠️ Görme alanında progresyon var ve OCT'de RNFL'de ek incelme saptandı. GİB: 21 mmHg.")
+            q5 = st.radio("Ne yapalım?", ["Seçim yapınız...", "A) Takibe devam", "B) Yeni (ikinci) ilaç ekle", "C) İlacı kesip cerrahi planla"], index=0)
+            
+            if st.button("Onayla", key="v1_b5"):
+                if q5.startswith("B)"):
+                    st.session_state.feedback = "Doğru! Maksimum medikal tedaviye geçiyorsunuz."
+                    st.session_state.feedback_type = "success"; st.session_state.stage = 6; st.rerun()
+                else:
+                    st.session_state.fibers -= 150000
+                    st.session_state.feedback = "Yanlış hamle! Progresyon varken basamak artırılmalıdır. (150.000 lif kaybettiniz)"
+                    st.session_state.feedback_type = "error"; st.rerun()
+
+        elif st.session_state.stage == 6:
+            st.subheader("⏳ Aşama 6: Bir 6 Ay Sonra Daha")
+            st.info("ℹ️ İnceme durdu, görme alanı STABİL. GİB: 15 mmHg.")
+            q6 = st.radio("Sonraki adımınız nedir?", ["Seçim yapınız...", "A) Yeni ilaç ekle", "B) Cerrahi yapalım", "C) İlaçları keselim", "D) Mevcut tedaviye aynen devam"], index=0)
+            
+            if st.button("Onayla", key="v1_b6"):
+                if q6.startswith("D)"):
+                    st.session_state.feedback = "Harika! Progresyonu durdurdunuz."
+                    st.session_state.feedback_type = "success"; st.session_state.stage = 7; st.rerun()
+                else:
+                    st.session_state.fibers -= 100000
+                    st.session_state.feedback = "Hatalı karar! Stabil hastanın tedavisini bozmayın. (100.000 lif kaybettiniz)"
+                    st.session_state.feedback_type = "error"; st.rerun()
+
+        elif st.session_state.stage == 7:
+            st.header("🏁 POLİKLİNİK VAKA SONUCU")
+            if st.session_state.fibers > 800000:
+                st.success(f"Tebrikler Doktor! Sinsi progresyonu yönettiniz. Kalan Lif: {int(st.session_state.fibers):,}")
+                st.balloons()
+            else:
+                st.error(f"Başarısız! Optik sinir rezervi {int(st.session_state.fibers):,} life düştü.")
+
+
+    # ==========================================
+    # VAKA 2 (AAKG) İŞLEYİŞİ
+    # ==========================================
+    elif st.session_state.current_case == 2:
+        if st.session_state.stage == 1:
+            st.subheader("Aşama 1: Triage ve Anamnez")
+            st.write("**Hikaye:** 60 yaşında, +4.00 D hipermetrop Çinli kadın turist. Şiddetli baş ağrısı, kusma ve loş ışıkta puslu görme.")
+            
+            q1 = st.radio("En olası ön tanınız nedir?", 
+                ["Seçim yapınız...", "A) İdyopatik intrakraniyal hipertansiyon", "B) Santral retinal arter tıkanıklığı", "C) Akut açı kapanması glokomu"], index=0)
+            
+            if st.button("Onayla", key="v2_b1"):
+                if q1.startswith("C)"):
+                    st.session_state.feedback = "Doğru! Kusursuz fırtına: Hipermetropi, ileri yaş, Asya ırkı, loş ışık."
+                    st.session_state.feedback_type = "success"; st.session_state.stage = 2; st.rerun()
+                elif q1.startswith("A)"):
+                    st.session_state.fibers -= 300000
+                    st.session_state.feedback = "Ölümcül Hata! Nörolojiye sevk edip zaman kaybettirdiniz! (300.000 lif kaybettiniz)"
+                    st.session_state.feedback_type = "error"; st.rerun()
+                elif q1.startswith("B)"):
+                    st.session_state.fibers -= 100000
+                    st.session_state.feedback = "Yanlış tanı. (100.000 lif kaybettiniz)"
+                    st.session_state.feedback_type = "error"; st.rerun()
+
+        elif st.session_state.stage == 2:
+            st.subheader("Aşama 2: Fizik Muayene")
+            q2 = st.radio("Sol gözde hangi bulgu üçlüsünü beklersiniz?", 
+                ["Seçim yapınız...", "A) Kiraz kırmızısı leke", "B) Konjunktival hiperemi, bulanık kornea, middilate pupilla", "C) Derin ön kamara, miyozis"], index=0)
+            
+            if st.button("Onayla", key="v2_b2"):
+                if q2.startswith("B)"):
+                    st.session_state.feedback = "Doğru bulgu! GİB: 60 mmHg."
+                    st.session_state.feedback_type = "success"; st.session_state.stage = 3; st.rerun()
+                else:
+                    st.session_state.fibers -= 100000
+                    st.session_state.feedback = "Yanlış bulgu! (100.000 lif kaybettiniz)"
+                    st.session_state.feedback_type = "error"; st.rerun()
+
+        elif st.session_state.stage == 3:
+            st.subheader("Aşama 3: İlk Medikal Müdahale Kararı")
+            st.error("GİB 60 mmHg! Acil düşürülmesi gerekiyor.")
+            q3 = st.radio("Aşağıdakilerden hangisini İLK ANDA KESİNLİKLE VERMEMELİSİNİZ?", 
+                ["Seçim yapınız...", "A) İntravenöz Mannitol", "B) Topikal Beta Blokörler", "C) Topikal Pilokarpin"], index=0)
+            
+            if st.button("Onayla", key="v2_b3"):
+                if q3.startswith("C)"):
+                    st.session_state.feedback = "Çok doğru! İlk anda Pilokarpin verilmez."
+                    st.session_state.feedback_type = "success"; st.session_state.stage = 4; st.rerun()
+                else:
+                    st.session_state.fibers -= 100000
+                    st.session_state.feedback = "Yanlış! O ajanı kullanmalıyız. Kontrendike olanı bulun. (100.000 lif kaybettiniz)"
+                    st.session_state.feedback_type = "error"; st.rerun()
+
+        elif st.session_state.stage == 4:
+            st.subheader("Aşama 4: İskemi Tuzağının Nedeni")
+            q4 = st.radio("Neden ilk anda Pilokarpin etkisizdir?", 
+                ["Seçim yapınız...", "A) Kornea ödemi engeller.", "B) Aköz üretimi artar.", "C) Yüksek basınç nedeniyle iris sfinkter kasında iskemi gelişmiştir."], index=0)
+            
+            if st.button("Onayla", key="v2_b4"):
+                if q4.startswith("C)"):
+                    st.session_state.feedback = "Mükemmel! İskemi çözülmeden kas kasılamaz."
+                    st.session_state.feedback_type = "success"; st.session_state.stage = 5; st.rerun()
+                else:
+                    st.session_state.fibers -= 150000
+                    st.session_state.feedback = "Yanlış! İskemi tuzağına düştünüz. (150.000 lif kaybettiniz)"
+                    st.session_state.feedback_type = "error"; st.rerun()
+
+        elif st.session_state.stage == 5:
+            st.subheader("Aşama 5: Kesin Çözüm ve Profilaksi")
+            st.write("GİB düştü, kriz kırıldı.")
+            q5 = st.radio("Tekrarlamasını önlemek ve diğer gözü korumak için KESİN (küratif) tedaviniz nedir?", 
+                ["Seçim yapınız...", "A) Ömür boyu Pilokarpin", "B) Lazer Periferik İridotomi (LPI)", "C) Cerrahi Trabekülektomi"], index=0)
+            
+            if st.button("Onayla", key="v2_b5"):
+                if q5.startswith("B)"):
+                    st.session_state.feedback = "Doğru Karar! Her iki göze LPI yapıldı."
+                    st.session_state.feedback_type = "success"; st.session_state.stage = 6; st.rerun()
+                else:
+                    st.session_state.fibers -= 100000
+                    st.session_state.feedback = "Yanlış tedavi seçimi. LPI şarttır! (100.000 lif kaybettiniz)"
+                    st.session_state.feedback_type = "error"; st.rerun()
+
+        elif st.session_state.stage == 6:
+            st.header("🏁 ACİL SERVİS VAKA SONUCU")
+            if st.session_state.fibers > 800000:
+                st.success(f"Tebrikler Doktor! Krizi başarıyla atlattınız. Kalan Lif: {int(st.session_state.fibers):,}")
+                st.balloons()
+            else:
+                st.error(f"Kriz atlatıldı ancak gecikmeler yüzünden rezerv {int(st.session_state.fibers):,} life düştü.")
