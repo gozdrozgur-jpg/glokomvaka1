@@ -27,27 +27,28 @@ if 'exam_finished' not in st.session_state:
     st.session_state.exam_finished = False
 
 # --- YENİ GOOGLE SHEETS KAYIT FONKSİYONU ---
+# --- SİZE ÖZEL GOOGLE SHEETS KAYIT FONKSİYONU ---
 def kayit_olustur(vaka_adi, skor):
-    # DİKKAT: Buradaki "1FAIp..." kısmını kendi linkinizdeki Form ID ile değiştirin!
+    # Hata kodundan çıkardığım sizin formunuzun KESİN adresi:
     form_url = "https://docs.google.com/forms/d/e/1FAIpQLSecb9AkCdK_i0PDYRZCvirE7q0nOLHKGb11wBg2pQGXOtgn6w/formResponse"
     
-    # DİKKAT: Buradaki "entry.111111" numaralarını kendi not defterinize aldığınız numaralarla değiştirin!
+    # Hata kodundan çıkardığım sizin sorularınızın KESİN ID'leri:
     form_verileri = {
-        "entry.233375778": st.session_state.student_no,    # Öğrenci No sorusunun kodu
-        "entry.1865481121": st.session_state.student_name,  # Ad Soyad sorusunun kodu
-        "entry.1068399766": vaka_adi,                       # Vaka Adı sorusunun kodu
-        "entry.1990253416": str(skor)                       # Skor sorusunun kodu
+        "entry.233375778": st.session_state.student_no,    # Öğrenci No
+        "entry.1865481121": st.session_state.student_name, # Ad Soyad
+        "entry.1068399766": vaka_adi,                      # Vaka Adı
+        "entry.1990253416": str(skor)                      # Skor
+    }
+    
+    # Tarayıcı kimliği
+    basliklar = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
     }
     
     try:
-        # Verileri forma gönder ve sunucunun cevabını al
-        cevap = requests.post(form_url, data=form_verileri)
-        
-        # Eğer sunucu OK (200) kodu döndürmezse ekrana yazdır
+        cevap = requests.post(form_url, data=form_verileri, headers=basliklar)
         if cevap.status_code != 200:
-            st.error(f"Forma ulaşılamadı! Google'ın verdiği Hata Kodu: {cevap.status_code}")
-            st.write("Cevap Detayı:", cevap.text)
-            
+            st.error(f"Google kapıdan çevirdi! Hata Kodu: {cevap.status_code}")
     except Exception as e:
         st.error(f"Sonuç buluta kaydedilirken bağlantı hatası oluştu: {e}")
 
