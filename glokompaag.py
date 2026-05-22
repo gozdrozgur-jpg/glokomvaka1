@@ -40,7 +40,14 @@ def kayit_olustur(vaka_adi, skor):
     }
     
     try:
-        requests.post(form_url, data=form_verileri)
+        # Verileri forma gönder ve sunucunun cevabını al
+        cevap = requests.post(form_url, data=form_verileri)
+        
+        # Eğer sunucu OK (200) kodu döndürmezse ekrana yazdır
+        if cevap.status_code != 200:
+            st.error(f"Forma ulaşılamadı! Google'ın verdiği Hata Kodu: {cevap.status_code}")
+            st.write("Cevap Detayı:", cevap.text)
+            
     except Exception as e:
         st.error(f"Sonuç buluta kaydedilirken bağlantı hatası oluştu: {e}")
 
