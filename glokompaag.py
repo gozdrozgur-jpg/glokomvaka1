@@ -1,6 +1,6 @@
+import requests
 import streamlit as st
 import random
-import csv
 from datetime import datetime
 
 # --- SAYFA AYARLARI ---
@@ -26,16 +26,23 @@ if 'feedback_type' not in st.session_state:
 if 'exam_finished' not in st.session_state:
     st.session_state.exam_finished = False
 
-# Sonucu CSV dosyasına kaydetme fonksiyonu
+# --- YENİ GOOGLE SHEETS KAYIT FONKSİYONU ---
 def kayit_olustur(vaka_adi, skor):
-    zaman = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    dosya_adi = "sinav_sonuclari.csv"
+    # DİKKAT: Buradaki "1FAIp..." kısmını kendi linkinizdeki Form ID ile değiştirin!
+    form_url = "https://docs.google.com/forms/d/e/1FAIpQLSecb9AkCdK_i0PDYRZCvirE7q0nOLHKGb11wBg2pQGXOtgn6w/formResponse"
+    
+    # DİKKAT: Buradaki "entry.111111" numaralarını kendi not defterinize aldığınız numaralarla değiştirin!
+    form_verileri = {
+        "entry.233375778": st.session_state.student_no,    # Öğrenci No sorusunun kodu
+        "entry.1865481121": st.session_state.student_name,  # Ad Soyad sorusunun kodu
+        "entry.1068399766": vaka_adi,                       # Vaka Adı sorusunun kodu
+        "entry.1990253416": str(skor)                       # Skor sorusunun kodu
+    }
+    
     try:
-        with open(dosya_adi, mode="a", newline="", encoding="utf-8") as dosya:
-            yazici = csv.writer(dosya)
-            yazici.writerow([zaman, st.session_state.student_no, st.session_state.student_name, vaka_adi, skor])
+        requests.post(form_url, data=form_verileri)
     except Exception as e:
-        st.error(f"Kayıt sırasında bir hata oluştu: {e}")
+        st.error(f"Sonuç buluta kaydedilirken bağlantı hatası oluştu: {e}")
 
 def reset_to_menu():
     st.session_state.current_case = None
@@ -71,13 +78,6 @@ if not st.session_state.logged_in:
                 st.session_state.student_name = ogrenci_adi
                 st.session_state.student_no = ogrenci_numarasi
                 st.session_state.logged_in = True
-                # CSV dosyası yoksa başlıkları oluştur
-                try:
-                    with open("sinav_sonuclari.csv", mode="x", newline="", encoding="utf-8") as dosya:
-                        yazici = csv.writer(dosya)
-                        yazici.writerow(["Tarih_Saat", "Ogrenci_No", "Ad_Soyad", "Vaka", "Kalan_Lif_Skoru"])
-                except FileExistsError:
-                    pass
                 st.rerun()
 
 # --- ANA MENÜ (ÖĞRENCİ SEÇİMİ) ---
@@ -216,7 +216,7 @@ else:
             st.header("🏁 SINAV TAMAMLANDI")
             st.success(f"Nihai Skorunuz: {int(st.session_state.fibers):,} Lif")
             
-            # Sınav Sonuç Belgesi İndirme (Öğrenci Makbuzu)
+            # Sınav Sonuç Belgesi İndirme
             belge_icerigi = f"""SULEYMAN DEMIREL UNIVERSITESI TIP FAKULTESI
 GOZ HASTALIKLARI - GLOKOM SIMULASYON SINAVI SONUC BELGESI
 ---------------------------------------------------
